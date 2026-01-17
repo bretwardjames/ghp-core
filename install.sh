@@ -27,16 +27,16 @@ fi
 
 # Install CLI
 echo -e "${CYAN}📦 Installing ghp CLI...${NC}"
-if [ -w "$(npm config get prefix)/lib/node_modules" ]; then
-    npm install -g @bretwardjames/ghp-cli
+if npm install -g @bretwardjames/ghp-cli 2>/dev/null; then
+    echo -e "${GREEN}✓${NC} CLI installed"
 else
-    echo -e "${DIM}(requires sudo for global install)${NC}"
+    echo -e "${DIM}Retrying with sudo...${NC}"
     sudo npm install -g @bretwardjames/ghp-cli
+    echo -e "${GREEN}✓${NC} CLI installed"
 fi
-echo -e "${GREEN}✓${NC} CLI installed"
 echo ""
 
-# Install Cursor extension
+# Install Cursor extension (must run as regular user, not root)
 if [ -z "$SKIP_CURSOR" ]; then
     echo -e "${CYAN}🔌 Installing Cursor extension...${NC}"
 
@@ -51,9 +51,14 @@ if [ -z "$SKIP_CURSOR" ]; then
     # Download to temp file
     TEMP_VSIX=$(mktemp /tmp/gh-projects-XXXXXX.vsix)
     curl -sL "$VSIX_URL" -o "$TEMP_VSIX"
+    chmod 644 "$TEMP_VSIX"
 
-    # Install in Cursor
-    cursor --install-extension "$TEMP_VSIX"
+    # Install in Cursor (run as original user if we're root)
+    if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+        sudo -u "$SUDO_USER" cursor --install-extension "$TEMP_VSIX"
+    else
+        cursor --install-extension "$TEMP_VSIX"
+    fi
 
     # Cleanup
     rm "$TEMP_VSIX"
