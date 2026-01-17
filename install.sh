@@ -66,28 +66,48 @@ echo ""
 if [ -z "$SKIP_CURSOR" ]; then
     echo -e "${CYAN}🔌 Installing Cursor extension...${NC}"
 
-    # Get latest release VSIX URL
-    VSIX_URL=$(curl -s https://api.github.com/repos/bretwardjames/vscode-gh-projects/releases/latest | grep "browser_download_url.*vsix" | cut -d '"' -f 4)
+    EXTENSION_ID="bretwardjames.gh-projects"
+    INSTALLED=0
 
-    if [ -z "$VSIX_URL" ]; then
-        echo "❌ Could not find latest VSIX release"
-        exit 1
-    fi
-
-    # Download to temp file
-    TEMP_VSIX=$(mktemp /tmp/gh-projects-XXXXXX.vsix)
-    curl -sL "$VSIX_URL" -o "$TEMP_VSIX"
-    chmod 644 "$TEMP_VSIX"
-
-    # Install in Cursor (run as original user if we're root)
+    # Try marketplace first
+    echo -e "${DIM}Trying marketplace...${NC}"
     if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
-        sudo -u "$SUDO_USER" cursor --install-extension "$TEMP_VSIX"
+        if sudo -u "$SUDO_USER" cursor --install-extension "$EXTENSION_ID" 2>/dev/null; then
+            INSTALLED=1
+        fi
     else
-        cursor --install-extension "$TEMP_VSIX"
+        if cursor --install-extension "$EXTENSION_ID" 2>/dev/null; then
+            INSTALLED=1
+        fi
     fi
 
-    # Cleanup
-    rm "$TEMP_VSIX"
+    # Fall back to GitHub release if marketplace failed
+    if [ "$INSTALLED" -eq 0 ]; then
+        echo -e "${DIM}Marketplace not available, fetching from GitHub releases...${NC}"
+
+        # Get latest release VSIX URL
+        VSIX_URL=$(curl -s https://api.github.com/repos/bretwardjames/vscode-gh-projects/releases/latest | grep "browser_download_url.*vsix" | cut -d '"' -f 4)
+
+        if [ -z "$VSIX_URL" ]; then
+            echo "❌ Could not find latest VSIX release"
+            exit 1
+        fi
+
+        # Download to temp file
+        TEMP_VSIX=$(mktemp /tmp/gh-projects-XXXXXX.vsix)
+        curl -sL "$VSIX_URL" -o "$TEMP_VSIX"
+        chmod 644 "$TEMP_VSIX"
+
+        # Install in Cursor (run as original user if we're root)
+        if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
+            sudo -u "$SUDO_USER" cursor --install-extension "$TEMP_VSIX"
+        else
+            cursor --install-extension "$TEMP_VSIX"
+        fi
+
+        # Cleanup
+        rm "$TEMP_VSIX"
+    fi
 
     echo -e "${GREEN}✓${NC} Cursor extension installed"
     echo ""
