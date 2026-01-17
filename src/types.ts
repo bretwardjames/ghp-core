@@ -38,31 +38,6 @@ export interface AuthError extends Error {
 }
 
 // =============================================================================
-// Storage Adapter Interface (for BranchLinker)
-// =============================================================================
-
-/**
- * Interface for persisting branch-issue links.
- * Implement this for different storage backends (file system, VSCode state, etc.)
- */
-export interface StorageAdapter {
-    load(): BranchLink[] | Promise<BranchLink[]>;
-    save(links: BranchLink[]): void | Promise<void>;
-}
-
-/**
- * A link between a git branch and a GitHub issue/item
- */
-export interface BranchLink {
-    branch: string;
-    issueNumber: number;
-    issueTitle: string;
-    itemId: string;
-    repo: string;
-    linkedAt: string;
-}
-
-// =============================================================================
 // Git Utilities Options
 // =============================================================================
 

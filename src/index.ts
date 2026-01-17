@@ -25,10 +25,15 @@
 export { GitHubAPI } from './github-api.js';
 
 // =============================================================================
-// Branch Linker
+// Branch Linker (stores links in GitHub issue bodies)
 // =============================================================================
 
-export { BranchLinker, createInMemoryAdapter } from './branch-linker.js';
+export {
+    BranchLinker,
+    parseBranchLink,
+    setBranchLinkInBody,
+    removeBranchLinkFromBody,
+} from './branch-linker.js';
 
 // =============================================================================
 // Git Utilities
@@ -81,12 +86,10 @@ export type {
     TokenProvider,
     GitHubAPIOptions,
     AuthError,
-    StorageAdapter,
 
     // Git
     GitOptions,
     RepoInfo,
-    BranchLink,
 
     // Normalized Types (simplified)
     Project,
