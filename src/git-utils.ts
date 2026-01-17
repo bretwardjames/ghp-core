@@ -208,6 +208,57 @@ export function generateBranchName(
 }
 
 /**
+ * Get all local branches
+ */
+export async function getLocalBranches(options: GitOptions = {}): Promise<string[]> {
+    try {
+        const { stdout } = await execGit('git branch --format="%(refname:short)"', options);
+        return stdout
+            .split('\n')
+            .map(b => b.trim())
+            .filter(b => b.length > 0);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Get all remote branches (excluding HEAD), stripped of origin/ prefix
+ */
+export async function getRemoteBranches(options: GitOptions = {}): Promise<string[]> {
+    try {
+        // Fetch to get latest remote branches
+        await execGit('git fetch --prune', options);
+
+        const { stdout } = await execGit('git branch -r --format="%(refname:short)"', options);
+        return stdout
+            .split('\n')
+            .map(b => b.trim())
+            .filter(b => b.length > 0 && !b.includes('HEAD'))
+            .map(b => b.replace(/^origin\//, '')); // Strip origin/ prefix
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Get all branches (local + remote unique)
+ */
+export async function getAllBranches(options: GitOptions = {}): Promise<string[]> {
+    const [local, remote] = await Promise.all([
+        getLocalBranches(options),
+        getRemoteBranches(options),
+    ]);
+
+    // Combine and deduplicate, with local branches first
+    const all = new Set<string>(local);
+    for (const b of remote) {
+        all.add(b);
+    }
+    return Array.from(all);
+}
+
+/**
  * Get the default branch name (main or master)
  */
 export async function getDefaultBranch(options: GitOptions = {}): Promise<string> {

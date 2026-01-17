@@ -55,6 +55,9 @@ export {
     sanitizeForBranchName,
     generateBranchName,
     getDefaultBranch,
+    getLocalBranches,
+    getRemoteBranches,
+    getAllBranches,
 } from './git-utils.js';
 
 // =============================================================================
