@@ -880,4 +880,41 @@ export class GitHubAPI {
             return false;
         }
     }
+
+    /**
+     * Update an issue's title and/or body
+     */
+    async updateIssue(
+        repo: RepoInfo,
+        issueNumber: number,
+        updates: { title?: string; body?: string }
+    ): Promise<boolean> {
+        if (!this.graphqlWithAuth) throw new Error('Not authenticated');
+
+        try {
+            const issueResponse: {
+                repository: {
+                    issue: { id: string } | null;
+                };
+            } = await this.graphqlWithAuth(queries.ISSUE_FOR_UPDATE_QUERY, {
+                owner: repo.owner,
+                name: repo.name,
+                number: issueNumber,
+            });
+
+            if (!issueResponse.repository.issue) {
+                return false;
+            }
+
+            await this.graphqlWithAuth(queries.UPDATE_ISSUE_MUTATION, {
+                issueId: issueResponse.repository.issue.id,
+                title: updates.title,
+                body: updates.body,
+            });
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
 }

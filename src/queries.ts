@@ -450,3 +450,16 @@ export const UPDATE_ISSUE_BODY_MUTATION = `
         }
     }
 `;
+
+/**
+ * Mutation to update issue title and/or body
+ */
+export const UPDATE_ISSUE_MUTATION = `
+    mutation($issueId: ID!, $title: String, $body: String) {
+        updateIssue(input: { id: $issueId, title: $title, body: $body }) {
+            issue {
+                id
+            }
+        }
+    }
+`;
