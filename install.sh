@@ -27,7 +27,12 @@ fi
 
 # Install CLI
 echo -e "${CYAN}📦 Installing ghp CLI...${NC}"
-npm install -g @bretwardjames/ghp-cli
+if [ -w "$(npm config get prefix)/lib/node_modules" ]; then
+    npm install -g @bretwardjames/ghp-cli
+else
+    echo -e "${DIM}(requires sudo for global install)${NC}"
+    sudo npm install -g @bretwardjames/ghp-cli
+fi
 echo -e "${GREEN}✓${NC} CLI installed"
 echo ""
 
