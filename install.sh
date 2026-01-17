@@ -91,14 +91,14 @@ if [ -z "$SKIP_EXTENSION" ]; then
 
         INSTALLED=0
 
-        # Try marketplace first
+        # Try marketplace first (--force to update existing installs)
         echo -e "${DIM}Trying marketplace...${NC}"
         if [ "$EUID" -eq 0 ] && [ -n "$SUDO_USER" ]; then
-            if sudo -u "$SUDO_USER" "$EDITOR" --install-extension "$EXTENSION_ID" 2>/dev/null; then
+            if sudo -u "$SUDO_USER" "$EDITOR" --install-extension "$EXTENSION_ID" --force 2>/dev/null; then
                 INSTALLED=1
             fi
         else
-            if "$EDITOR" --install-extension "$EXTENSION_ID" 2>/dev/null; then
+            if "$EDITOR" --install-extension "$EXTENSION_ID" --force 2>/dev/null; then
                 INSTALLED=1
             fi
         fi
