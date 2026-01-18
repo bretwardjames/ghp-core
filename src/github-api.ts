@@ -917,4 +917,84 @@ export class GitHubAPI {
             return false;
         }
     }
+
+    /**
+     * Update assignees on an issue
+     */
+    async updateAssignees(
+        repo: RepoInfo,
+        issueNumber: number,
+        assigneeLogins: string[]
+    ): Promise<boolean> {
+        if (!this.graphqlWithAuth) throw new Error('Not authenticated');
+
+        try {
+            // Get the issue node ID and current assignee IDs
+            const issueResponse: {
+                repository: {
+                    issue: {
+                        id: string;
+                        assignees: { nodes: Array<{ id: string; login: string }> };
+                    } | null;
+                };
+            } = await this.graphqlWithAuth(
+                `query($owner: String!, $name: String!, $number: Int!) {
+                    repository(owner: $owner, name: $name) {
+                        issue(number: $number) {
+                            id
+                            assignees(first: 20) { nodes { id login } }
+                        }
+                    }
+                }`,
+                { owner: repo.owner, name: repo.name, number: issueNumber }
+            );
+
+            if (!issueResponse.repository.issue) {
+                return false;
+            }
+
+            const issueId = issueResponse.repository.issue.id;
+
+            // Get user IDs for the new assignees
+            const assigneeIds: string[] = [];
+            for (const login of assigneeLogins) {
+                const userResponse: { user: { id: string } | null } = await this.graphqlWithAuth(
+                    `query($login: String!) { user(login: $login) { id } }`,
+                    { login }
+                );
+                if (userResponse.user) {
+                    assigneeIds.push(userResponse.user.id);
+                }
+            }
+
+            // Clear existing assignees first
+            const currentAssigneeIds = issueResponse.repository.issue.assignees.nodes.map(a => a.id);
+            if (currentAssigneeIds.length > 0) {
+                await this.graphqlWithAuth(
+                    `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        removeAssigneesFromAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+                            clientMutationId
+                        }
+                    }`,
+                    { assignableId: issueId, assigneeIds: currentAssigneeIds }
+                );
+            }
+
+            // Add new assignees
+            if (assigneeIds.length > 0) {
+                await this.graphqlWithAuth(
+                    `mutation($assignableId: ID!, $assigneeIds: [ID!]!) {
+                        addAssigneesToAssignable(input: { assignableId: $assignableId, assigneeIds: $assigneeIds }) {
+                            clientMutationId
+                        }
+                    }`,
+                    { assignableId: issueId, assigneeIds }
+                );
+            }
+
+            return true;
+        } catch {
+            return false;
+        }
+    }
 }
