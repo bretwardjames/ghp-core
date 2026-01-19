@@ -169,14 +169,26 @@ export class GitHubAPI {
                             url: string;
                         }>;
                     };
-                };
+                } | null;
             } = await this.graphqlWithAuth(queries.REPOSITORY_PROJECTS_QUERY, {
                 owner: repo.owner,
                 name: repo.name,
             });
 
+            if (!response.repository) {
+                throw new Error(`Repository not found: ${repo.owner}/${repo.name}`);
+            }
+
             return response.repository.projectsV2.nodes;
         } catch (error) {
+            // Check for NOT_FOUND error type
+            if (error && typeof error === 'object' && 'errors' in error) {
+                const gqlError = error as { errors?: Array<{ type?: string; message?: string }> };
+                const notFound = gqlError.errors?.find(e => e.type === 'NOT_FOUND');
+                if (notFound) {
+                    throw new Error(`Repository not found: ${repo.owner}/${repo.name}`);
+                }
+            }
             this.handleAuthError(error);
         }
     }

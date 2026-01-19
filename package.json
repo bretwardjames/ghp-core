@@ -1,6 +1,6 @@
 {
   "name": "@bretwardjames/ghp-core",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Shared core library for GitHub Projects tools",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
