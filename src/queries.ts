@@ -397,6 +397,43 @@ export const ISSUES_WITH_LABEL_QUERY = `
 `;
 
 /**
+ * Query to get project items with labels and full repository info
+ * Used for cross-repo active label management
+ */
+export const PROJECT_ITEMS_WITH_LABELS_QUERY = `
+    query($projectId: ID!) {
+        node(id: $projectId) {
+            ... on ProjectV2 {
+                items(first: 100) {
+                    nodes {
+                        id
+                        content {
+                            __typename
+                            ... on Issue {
+                                number
+                                labels(first: 10) { nodes { name } }
+                                repository {
+                                    name
+                                    owner { login }
+                                }
+                            }
+                            ... on PullRequest {
+                                number
+                                labels(first: 10) { nodes { name } }
+                                repository {
+                                    name
+                                    owner { login }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+/**
  * Query to get available issue types for a repository
  */
 export const ISSUE_TYPES_QUERY = `
