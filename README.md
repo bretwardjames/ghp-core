@@ -1,3 +1,6 @@
+> **Note**: This repository has moved to [github.com/bretwardjames/ghp](https://github.com/bretwardjames/ghp).
+> This repo is archived and no longer maintained.
+
 # GHP Tools
 
 A suite of tools for managing GitHub Projects from your terminal and editor.
