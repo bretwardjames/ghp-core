@@ -112,6 +112,19 @@ export type {
 } from './sync.js';
 
 // =============================================================================
+// Issue Metadata Parsing
+// =============================================================================
+
+export {
+    parseIssueMetadata,
+    parseFieldsOption,
+    mergeMetadata,
+    generateMetadataTemplate,
+} from './issue-metadata.js';
+
+export type { IssueMetadata } from './issue-metadata.js';
+
+// =============================================================================
 // GraphQL Queries (for advanced usage)
 // =============================================================================
 
