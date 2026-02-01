@@ -806,6 +806,73 @@ export class GitHubAPI {
     }
 
     /**
+     * Find all project items with a specific label across all repos in the project.
+     * Returns items with their issue number and repo info for cross-repo label management.
+     */
+    async findProjectItemsWithLabel(projectId: string, labelName: string): Promise<Array<{
+        number: number;
+        repo: RepoInfo;
+    }>> {
+        if (!this.graphqlWithAuth) throw new Error('Not authenticated');
+
+        try {
+            const response: {
+                node: {
+                    items: {
+                        nodes: Array<{
+                            id: string;
+                            content: {
+                                __typename: string;
+                                number?: number;
+                                labels?: { nodes: Array<{ name: string }> };
+                                repository?: {
+                                    name: string;
+                                    owner: { login: string };
+                                };
+                            } | null;
+                        }>;
+                    };
+                } | null;
+            } = await this.graphqlWithAuth(queries.PROJECT_ITEMS_WITH_LABELS_QUERY, {
+                projectId,
+            });
+
+            if (!response.node?.items) {
+                return [];
+            }
+
+            const results: Array<{ number: number; repo: RepoInfo }> = [];
+
+            for (const item of response.node.items.nodes) {
+                const content = item.content;
+                if (!content || content.__typename === 'DraftIssue') continue;
+                if (!content.number || !content.repository || !content.labels) continue;
+
+                // Check if item has the label
+                const hasLabel = content.labels.nodes.some(
+                    l => l.name.toLowerCase() === labelName.toLowerCase()
+                );
+
+                if (hasLabel) {
+                    results.push({
+                        number: content.number,
+                        repo: {
+                            owner: content.repository.owner.login,
+                            name: content.repository.name,
+                            fullName: `${content.repository.owner.login}/${content.repository.name}`,
+                        },
+                    });
+                }
+            }
+
+            return results;
+        } catch (error) {
+            console.error('Failed to find project items with label:', error);
+            return [];
+        }
+    }
+
+    /**
      * Get available issue types for a repository
      */
     async getIssueTypes(repo: RepoInfo): Promise<Array<{ id: string; name: string }>> {
@@ -1008,5 +1075,76 @@ export class GitHubAPI {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Transfer the active label from other issues to a target issue.
+     * Based on scope:
+     * - 'repo': Only manages label within the same repository
+     * - 'project': Manages label across all repos in the project
+     *
+     * @returns Details about what was changed for caller logging
+     */
+    async transferActiveLabel(options: {
+        repo: RepoInfo;
+        issueNumber: number;
+        scope: 'repo' | 'project';
+        projectId?: string;
+        labelName?: string;
+        labelColor?: string;
+        labelDescription?: string;
+    }): Promise<{
+        added: boolean;
+        removed: Array<{ repo: RepoInfo; number: number }>;
+    }> {
+        const {
+            repo,
+            issueNumber,
+            scope,
+            projectId,
+            labelName = this.getActiveLabelName(),
+            labelColor = '1d76db',
+            labelDescription,
+        } = options;
+
+        const removed: Array<{ repo: RepoInfo; number: number }> = [];
+
+        // Ensure the label exists in the target repo
+        await this.ensureLabel(repo, labelName, labelColor);
+
+        if (scope === 'project' && projectId) {
+            // Project scope: remove active label from all repos in the project
+            const itemsWithLabel = await this.findProjectItemsWithLabel(projectId, labelName);
+
+            for (const item of itemsWithLabel) {
+                // Skip the current issue
+                if (item.number === issueNumber && item.repo.fullName === repo.fullName) {
+                    continue;
+                }
+
+                // Ensure label exists in the other repo before removing
+                await this.ensureLabel(item.repo, labelName, labelColor);
+                const wasRemoved = await this.removeLabelFromIssue(item.repo, item.number, labelName);
+                if (wasRemoved) {
+                    removed.push({ repo: item.repo, number: item.number });
+                }
+            }
+        } else {
+            // Repo scope: only remove from issues in the same repo
+            const issuesWithLabel = await this.findIssuesWithLabel(repo, labelName);
+            for (const otherIssue of issuesWithLabel) {
+                if (otherIssue !== issueNumber) {
+                    const wasRemoved = await this.removeLabelFromIssue(repo, otherIssue, labelName);
+                    if (wasRemoved) {
+                        removed.push({ repo, number: otherIssue });
+                    }
+                }
+            }
+        }
+
+        // Add label to target issue
+        const added = await this.addLabelToIssue(repo, issueNumber, labelName);
+
+        return { added, removed };
     }
 }
